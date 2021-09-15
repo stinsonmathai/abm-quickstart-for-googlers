@@ -10,7 +10,7 @@ MACHINE_TYPE_MASTER=e2-medium
 VM_COUNT_MASTER=3
 MACHINE_TYPE_WORKER=n2-standard-32
 VM_COUNT_WORKER=3
-ABM_VERSION=1.8.3
+ABM_VERSION=1.8.2
 BRANCH=feat/add-multi-nic
 
 # Source important variables that need to persist and are easy to forget about
