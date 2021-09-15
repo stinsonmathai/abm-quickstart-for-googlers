@@ -1,0 +1,157 @@
+# Modified from: https://cloud.google.com/anthos/clusters/docs/bare-metal/1.6/try/gce-vms
+# NOTES: All shell commands use EXTRA_SSH_ARGS, which will allow shell provisioning to properly function in a google.com GCP environment
+
+# Configure your GCP project
+export PROJECT_ID=$1
+export ZONE=$2
+
+# Set VM instance type and quantity
+MACHINE_TYPE_MASTER=$3
+VM_COUNT_MASTER=$4
+MACHINE_TYPE_WORKER=$5
+VM_COUNT_WORKER=$6
+
+# Create list of VM name
+declare -a VMs_MASTER=()
+declare -a VMs_WORKER=()
+VM_PREFIX=abm  #TODO: This is never used
+VM_WS=abm-ws
+VMs_MASTER+=("$VM_WS")
+#create the list of names for the k8s master nodes
+for ((i=1; i<=${VM_COUNT_MASTER}; i++)); do
+  VMs_MASTER[i]="master-k8s-$i"
+done
+#create the list of names for the k8s worker nodes
+for ((i=0; i<=${VM_COUNT_WORKER}; i++)); do
+  VMs_WORKER[i]="worker-k8s-$i"
+done
+
+#todo: create the loops for master and worker vms. - done
+#todo: concatenate the VM lists - done
+
+# Create Master and Work Station VMs and record their private IPs
+declare -a IPs_MASTER=()
+for vm in "${VMs_MASTER[@]}"
+do
+    gcloud compute instances create $vm \
+              --image-family=ubuntu-2004-lts --image-project=ubuntu-os-cloud \
+              --zone=${ZONE} \
+              --boot-disk-size 100G \
+              --boot-disk-type pd-balanced \
+              --can-ip-forward \
+              --network-interface=network-tier=PREMIUM,subnet=default \
+              --tags http-server,https-server \
+              --scopes cloud-platform \
+              --machine-type $MACHINE_TYPE_MASTER
+    IP=$(gcloud compute instances describe $vm --zone ${ZONE} \
+         --format='get(networkInterfaces[0].networkIP)')
+    IPs_MASTER+=("$IP")
+done
+#--min-cpu-platform "Intel Haswell" \ -- removed
+
+
+# Create Worker Node VMs and record their private IPs
+declare -a IPs_WORKER=()
+for vm in "${VMs_WORKER[@]}"
+do
+    gcloud compute instances create $vm \
+              --image-family=ubuntu-2004-lts --image-project=ubuntu-os-cloud \
+              --zone=${ZONE} \
+              --boot-disk-size 120G \
+              --boot-disk-type pd-balanced \
+              --can-ip-forward \
+              --network-interface=network-tier=PREMIUM,subnet=default \
+              --network-interface=network-tier=PREMIUM,subnet=inter-cnf-cntrl \
+              --network-interface=network-tier=PREMIUM,subnet=ran-subnet \
+              --network-interface=network-tier=PREMIUM,subnet=www-subnet \
+              --tags http-server,https-server \
+              --scopes cloud-platform \
+              --machine-type $MACHINE_TYPE_WORKER \
+              --create-disk=auto-delete=yes,device-name="$vm-disk-1",mode=rw,name="$vm-disk-1",size=260 \
+              --no-shielded-secure-boot \
+              --shielded-vtpm \
+              --shielded-integrity-monitoring \
+              --reservation-affinity=any
+    IP=$(gcloud compute instances describe $vm --zone ${ZONE} \
+         --format='get(networkInterfaces[0].networkIP)')
+    IPs_WORKER+=("$IP")
+done
+
+# join the list of VMs and associated private IPs
+declare -a IPs=()
+IPs=("${IPs_MASTER[@]}" "${IPs_WORKER[@]}")
+declare -a VMs=()
+VMs=("${VMs_MASTER[@]}" "${VMs_WORKER[@]}")
+
+
+# Check if corp-ssh-helper is available so VPN isn't required e.g. on mac, glinux or cloudtop
+EXTRA_SSH_ARGS=()
+if command -v corp-ssh-helper &> /dev/null
+then
+  EXTRA_SSH_ARGS=(-- -o ProxyCommand='corp-ssh-helper %h %p' -ServerAliveInterval=30 -o ConnectTimeout=30)
+fi
+for vm in "${VMs[@]}"
+do
+    while ! gcloud compute ssh root@$vm --zone us-central1-a --command "echo SSH to $vm succeeded" "${EXTRA_SSH_ARGS[@]}"
+    do
+        echo "Trying to SSH into $vm failed. Sleeping for 5 seconds. zzzZZzzZZ"
+        sleep  5
+    done
+done
+
+i=2 # Define a VXLAN starting from 10.200.0.2/24
+for vm in "${VMs[@]}"
+do
+    gcloud compute ssh root@$vm --zone ${ZONE} "${EXTRA_SSH_ARGS[@]}" << EOF
+        apt-get -qq update > /dev/null
+        apt-get -qq install -y jq > /dev/null
+        set -x
+        ip link add vxlan0 type vxlan id 42 dev ens4 dstport 0
+        current_ip=\$(ip --json a show dev ens4 | jq '.[0].addr_info[0].local' -r)
+        echo "VM IP address is: \$current_ip"
+        for ip in ${IPs[@]}; do
+            if [ "\$ip" != "\$current_ip" ]; then
+                bridge fdb append to 00:00:00:00:00:00 dst \$ip dev vxlan0
+            fi
+        done
+        ip addr add 10.200.0.$i/24 dev vxlan0
+        ip link set up dev vxlan0
+        systemctl stop apparmor.service #Anthos clusters on bare metal does not support apparmor
+        systemctl disable apparmor.service
+EOF
+    i=$((i+1))
+done
+
+# Provision ABM prequsites on the ABM workstation
+gcloud compute ssh root@$VM_WS --zone ${ZONE} "${EXTRA_SSH_ARGS[@]}" << EOF
+set -x
+
+export PROJECT_ID=\$(gcloud config get-value project)
+gcloud iam service-accounts keys create bm-gcr.json \
+--iam-account=baremetal-gcr@\${PROJECT_ID}.iam.gserviceaccount.com
+
+curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+
+chmod +x kubectl
+mv kubectl /usr/local/sbin/
+mkdir baremetal && cd baremetal
+gsutil cp gs://anthos-baremetal-release/bmctl/$5/linux-amd64/bmctl .
+chmod a+x bmctl
+mv bmctl /usr/local/sbin/
+
+cd ~
+echo "Installing docker"
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+EOF
+
+# Register the ABM workstation's SSH public key with each VM
+gcloud compute ssh root@$VM_WS --zone ${ZONE} "${EXTRA_SSH_ARGS[@]}" << EOF
+set -x
+ssh-keygen -t rsa -N "" -f /root/.ssh/id_rsa <<< y
+sed 's/ssh-rsa/root:ssh-rsa/' ~/.ssh/id_rsa.pub > ssh-metadata
+for vm in ${VMs[@]}
+do
+    gcloud compute instances add-metadata \$vm --zone ${ZONE} --metadata-from-file ssh-keys=ssh-metadata
+done
+EOF
