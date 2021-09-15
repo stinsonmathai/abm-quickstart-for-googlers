@@ -99,7 +99,7 @@ delete-abm-service-acount-keys:
 prepare-hybrid-cluster:  ##   Copy a hybrid cluster manifest to the workstation
 	@gcloud compute ssh root@abm-ws --zone ${ZONE} -- -o ProxyCommand='corp-ssh-helper %h %p' -ServerAliveInterval=30 -o ConnectTimeout=30 << EOF
 	mkdir -p bmctl-workspace/hybrid-cluster-001
-	wget -O bmctl-workspace/hybrid-cluster-001/hybrid-cluster-001.yaml https://github.com/stinsonmathai/abm-quickstart-for-googlers/blob/feat/add-multi-nic/abm-clusters/hybrid-cluster-001.yaml
+	wget -O bmctl-workspace/hybrid-cluster-001/hybrid-cluster-001.yaml https://raw.githubusercontent.com/stinsonmathai/abm-quickstart-for-googlers/feat/add-multi-nic/abm-clusters/hybrid-cluster-001.yaml
 	sed -i 's/ABM_VERSION/${ABM_VERSION}/' bmctl-workspace/hybrid-cluster-001/hybrid-cluster-001.yaml
 	sed -i 's/PROJECT_ID/${PROJECT_ID}/' bmctl-workspace/hybrid-cluster-001/hybrid-cluster-001.yaml
 	EOF
@@ -122,7 +122,7 @@ prepare-hybrid-cluster:  ##   Copy a hybrid cluster manifest to the workstation
 
 google-identity-login:  ##   Enable Google Identity Login
 	@gcloud compute ssh root@abm-ws --zone ${ZONE} -- -o ProxyCommand='corp-ssh-helper %h %p' -ServerAliveInterval=30 -o ConnectTimeout=30 << EOF
-	wget -O google-identity-login.yaml https://github.com/stinsonmathai/abm-quickstart-for-googlers/blob/feat/add-multi-nic/anthos-features/google-identity-login.yaml
+	wget -O google-identity-login.yaml https://raw.githubusercontent.com/stinsonmathai/abm-quickstart-for-googlers/feat/add-multi-nic/anthos-features/google-identity-login.yaml
 	sed -i 's/example-user@google.com/${USER_EMAIL}/' google-identity-login.yaml
 	kubectl apply -f google-identity-login.yaml --kubeconfig=/root/bmctl-workspace/hybrid-cluster-001/hybrid-cluster-001-kubeconfig
 	EOF
