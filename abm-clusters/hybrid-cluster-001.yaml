@@ -73,5 +73,5 @@ spec:
   clusterName: hybrid-cluster-001
   nodes:
   - address: 10.200.0.6
-  - address: 10.200.0.7
   - address: 10.200.0.8
+  - address: 10.200.0.7
