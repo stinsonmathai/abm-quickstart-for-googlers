@@ -65,7 +65,7 @@ configure-iam:  ##   Bind IAM permissions to a service account
 
 create-vpc: ##	Create the necessary VPCs for CNF - STIN UPDATE
 	@gcloud compute networks create control-vpc --project=${PROJECT_ID} --description=inter-cnf-3GPP-control --subnet-mode=custom --mtu=1460 --bgp-routing-mode=regional && gcloud compute networks subnets create inter-cnf-cntrl --project=${PROJECT_ID} --range=10.240.0.0/20 --network=control-vpc --region=us-central1 && gcloud compute firewall-rules create inter-cnf-cntrl-fw --network control-vpc --allow tcp,udp,icmp --source-ranges 10.240.0.0/20
-	@gcloud compute networks create ran-vpc --project=${PROJECT_ID} --description=3GPP-RAN-side --subnet-mode=custom --mtu=1460 --bgp-routing-mode=regional && gcloud compute networks subnets create ran-subnet --project=${PROJECT_ID} --range=10.100.0.0/20 --network=ran-vpc --region=us-central1 && gcloud compute firewall-rules create ran-fw --network ran-vpc --allow tcp,udp,icmp --source-ranges 10.200.0.0/20
+	@gcloud compute networks create ran-vpc --project=${PROJECT_ID} --description=3GPP-RAN-side --subnet-mode=custom --mtu=1460 --bgp-routing-mode=regional && gcloud compute networks subnets create ran-subnet --project=${PROJECT_ID} --range=10.100.0.0/20 --network=ran-vpc --region=us-central1 && gcloud compute firewall-rules create ran-fw --network ran-vpc --allow tcp,udp,icmp --source-ranges 10.100.0.0/20
 	@gcloud compute networks create www-vpc --project=${PROJECT_ID} --description=3GPP-www-side --subnet-mode=custom --mtu=1460 --bgp-routing-mode=regional && gcloud compute networks subnets create www-subnet --project=${PROJECT_ID} --range=10.192.0.0/20 --network=www-vpc --region=us-central1 && gcloud compute firewall-rules create www-fw --network www-vpc --allow tcp,udp,icmp --source-ranges 10.192.0.0/20
 
 
@@ -74,7 +74,7 @@ create-vpc: ##	Create the necessary VPCs for CNF - STIN UPDATE
 # TODO: Add tags to instances when they are created
 create-vms:  ##   Create and bootstrap GCE instances
 	# Top level environmental variables are passed into the the shell script positionally
-	@/bin/bash utils/abm-vm-bootstrap.sh ${PROJECT_ID} ${ZONE} ${MACHINE_TYPE_MASTER} ${VM_COUNT_MASTER} ${MACHINE_TYPE_WORKER} ${VM_COUNT_WORKER} ${ABM_VERSION}
+	@/bin/bash utils/abm-vm-for-wireless-bootstrap.sh ${PROJECT_ID} ${ZONE} ${MACHINE_TYPE_MASTER} ${VM_COUNT_MASTER} ${MACHINE_TYPE_WORKER} ${VM_COUNT_WORKER} ${ABM_VERSION}
 
 # TODO: Only delete instances that have the 'abm-demo' tag on them
 delete-vms:  ##   Delete all GCE instances in the current zone
