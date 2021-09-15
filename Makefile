@@ -6,7 +6,7 @@
 ####################################################################
 
 ZONE=us-central1-a
-MACHINE_TYPE_MASTER=e2-medium
+MACHINE_TYPE_MASTER=n1-standard-4
 VM_COUNT_MASTER=3
 MACHINE_TYPE_WORKER=n2-standard-32
 VM_COUNT_WORKER=2

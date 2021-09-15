@@ -40,9 +40,10 @@ do
               --boot-disk-size 100G \
               --boot-disk-type pd-balanced \
               --can-ip-forward \
-              --network-interface=network-tier=PREMIUM,subnet=default \
+              --network default \
               --tags http-server,https-server \
               --scopes cloud-platform \
+              --min-cpu-platform "Intel Haswell"\
               --machine-type $MACHINE_TYPE_MASTER
     IP=$(gcloud compute instances describe $vm --zone ${ZONE} \
          --format='get(networkInterfaces[0].networkIP)')
