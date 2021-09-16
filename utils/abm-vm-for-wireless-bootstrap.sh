@@ -46,7 +46,7 @@ do
               --network-interface=network-tier=PREMIUM,subnet=www-subnet \
               --tags http-server,https-server \
               --scopes cloud-platform \
-              --machine-type $MACHINE_TYPE_WORKER \
+              --machine-type $MACHINE_TYPE_MASTER \
               --create-disk=auto-delete=yes,device-name="$vm-disk-1",mode=rw,name="$vm-disk-1",size=260 \
               --no-shielded-secure-boot \
               --shielded-vtpm \
