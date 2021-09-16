@@ -37,14 +37,21 @@ do
     gcloud compute instances create $vm \
               --image-family=ubuntu-2004-lts --image-project=ubuntu-os-cloud \
               --zone=${ZONE} \
-              --boot-disk-size 100G \
+              --boot-disk-size 120G \
               --boot-disk-type pd-balanced \
               --can-ip-forward \
-              --network default \
+              --network-interface=network-tier=PREMIUM,subnet=default \
+              --network-interface=network-tier=PREMIUM,subnet=inter-cnf-cntrl \
+              --network-interface=network-tier=PREMIUM,subnet=ran-subnet \
+              --network-interface=network-tier=PREMIUM,subnet=www-subnet \
               --tags http-server,https-server \
               --scopes cloud-platform \
-              --min-cpu-platform "Intel Haswell"\
-              --machine-type $MACHINE_TYPE_MASTER
+              --machine-type $MACHINE_TYPE_WORKER \
+              --create-disk=auto-delete=yes,device-name="$vm-disk-1",mode=rw,name="$vm-disk-1",size=260 \
+              --no-shielded-secure-boot \
+              --shielded-vtpm \
+              --shielded-integrity-monitoring \
+              --reservation-affinity=any
     IP=$(gcloud compute instances describe $vm --zone ${ZONE} \
          --format='get(networkInterfaces[0].networkIP)')
     IPs_MASTER+=("$IP")
