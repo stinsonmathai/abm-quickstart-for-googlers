@@ -55,6 +55,11 @@ make enable-gcp-apis
 make configure-iam
 ```
 
+##### Configure VPC
+```
+make create-vpc
+```
+
 ##### Create VMs
 ```
 make create-vms
